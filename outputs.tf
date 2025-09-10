@@ -12,6 +12,6 @@ output "minio_console_url" {
 }
 
 output "secret_manager_name" {
-  value = var.minio_secret_name
+  value       = var.minio_secret_name
   description = "MinIO root creds are stored here in AWS Secrets Manager"
 }

@@ -11,18 +11,18 @@ variable "project_name" {
 }
 
 variable "vpc_cidr" {
-  type        = string
-  default     = "10.42.0.0/16"
+  type    = string
+  default = "10.42.0.0/16"
 }
 
 variable "public_subnet_cidrs" {
-  type        = list(string)
-  default     = ["10.42.0.0/20", "10.42.16.0/20", "10.42.32.0/20"]
+  type    = list(string)
+  default = ["10.42.0.0/20", "10.42.16.0/20", "10.42.32.0/20"]
 }
 
 variable "private_subnet_cidrs" {
-  type        = list(string)
-  default     = ["10.42.64.0/20", "10.42.80.0/20", "10.42.96.0/20"]
+  type    = list(string)
+  default = ["10.42.64.0/20", "10.42.80.0/20", "10.42.96.0/20"]
 }
 
 variable "node_count" {
@@ -32,8 +32,8 @@ variable "node_count" {
 }
 
 variable "instance_type" {
-  type        = string
-  default     = "m6i.large"
+  type    = string
+  default = "m6i.large"
 }
 
 variable "data_volume_size_gb" {
@@ -43,13 +43,13 @@ variable "data_volume_size_gb" {
 }
 
 variable "data_volume_iops" {
-  type        = number
-  default     = 3000
+  type    = number
+  default = 3000
 }
 
 variable "data_volume_throughput" {
-  type        = number
-  default     = 250
+  type    = number
+  default = 250
 }
 
 variable "minio_secret_name" {

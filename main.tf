@@ -1,5 +1,5 @@
-module "tags" {
-  source = "hashicorp/null"
-}
-
-# nothing here; file kept for repo structure clarity
+# main.tf
+# Placeholder for future modules
+# module "tags" {
+#   source = "hashicorp/null"
+# }

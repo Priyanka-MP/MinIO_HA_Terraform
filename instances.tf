@@ -1,19 +1,30 @@
-# Latest Amazon Linux 2023 (or switch to Ubuntu if you prefer)
+# Latest Amazon Linux 2023 (or switch to Ubuntu if you prefer) 
 data "aws_ami" "al2023" {
   owners      = ["137112412989"]
   most_recent = true
-  filter { name = "name"; values = ["al2023-ami-*-kernel-6.1-x86_64"] }
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-kernel-6.1-x86_64"]
+  }
 }
 
 locals {
   # spread nodes across private subnets
   selected_private_subnets = [for s in aws_subnet.private : s.id]
+  # expected IPs for MinIO peers (assuming AWS assigns .10, .11, etc.)
+  expected_ips = {
+    0 = "10.42.64.10"
+    1 = "10.42.80.10"
+    2 = "10.42.96.10"
+    3 = "10.42.64.11"
+  }
 }
 
 resource "aws_instance" "minio" {
   count                       = var.node_count
   ami                         = data.aws_ami.al2023.id
-  instance_type               = var.instance_type
+  instance_type               = "t2.micro"
   subnet_id                   = element(local.selected_private_subnets, count.index % length(local.selected_private_subnets))
   associate_public_ip_address = false
   vpc_security_group_ids      = [aws_security_group.node_sg.id]
@@ -30,13 +41,14 @@ resource "aws_instance" "minio" {
   }
 
   user_data = templatefile("${path.module}/user_data.sh.tmpl", {
-    secret_name    = var.minio_secret_name
-    peers          = join(" ", aws_instance.minio.*.private_ip)
-    data_device    = "/dev/xvdb"
-    data_mount     = "/mnt/minio"
-    console_port   = 9001
-    api_port       = 9000
+    SECRET_NAME  = var.minio_secret_name
+    PEER_ARGS    = join(" ", [for i in range(var.node_count) : i != count.index ? "http://${local.expected_ips[i]}:9000/mnt/minio/" : ""])
+    DATA_DEVICE  = "/dev/xvdb"  # match template expectation
+    DATA_MOUNT   = "/mnt/minio" # match template expectation if also uppercase
+    CONSOLE_PORT = 9001
+    API_PORT     = 9000
   })
+
 
   tags = {
     Name = "${var.project_name}-node-${count.index + 1}"
