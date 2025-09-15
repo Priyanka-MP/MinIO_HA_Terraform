@@ -24,7 +24,8 @@ locals {
 resource "aws_instance" "minio" {
   count                       = var.node_count
   ami                         = data.aws_ami.al2023.id
-  instance_type               = "t2.micro"
+  instance_type               = "t3.micro"
+  key_name                    = "minio-key"
   subnet_id                   = element(local.selected_private_subnets, count.index % length(local.selected_private_subnets))
   associate_public_ip_address = false
   vpc_security_group_ids      = [aws_security_group.node_sg.id]

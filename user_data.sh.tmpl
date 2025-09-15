@@ -12,7 +12,7 @@ PEER_ARGS="${PEER_ARGS}"
 
 # Basic deps
 dnf update -y
-dnf install -y jq curl wget unzip tar xfsprogs util-linux awscli
+dnf install -y --allowerasing jq curl wget unzip tar xfsprogs util-linux awscli
 
 # Format and mount data disk if not already
 if ! blkid ${DATA_DEVICE}; then

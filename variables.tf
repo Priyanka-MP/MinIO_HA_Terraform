@@ -54,7 +54,7 @@ variable "data_volume_throughput" {
 
 variable "minio_secret_name" {
   type        = string
-  default     = "minio-root-credentials"
+  default     = "minio-root-credentials-new"
   description = "Secrets Manager secret name for MinIO root credentials"
 }
 

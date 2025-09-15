@@ -7,7 +7,7 @@ data_volume_size_gb    = 500
 data_volume_iops       = 3000
 data_volume_throughput = 250
 
-minio_secret_name = "minio-root-credentials"
+minio_secret_name = "minio-root-credentials-new"
 
 # Lock these to your office/VPN in real prod
 allow_ingress_cidrs_console = ["0.0.0.0/0"]
