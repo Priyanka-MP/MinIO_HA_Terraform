@@ -1,0 +1,87 @@
+#!/bin/bash
+set -euo pipefail
+
+#!/bin/bash
+DATA_DEVICE=${DATA_DEVICE}
+DATA_MOUNT=${DATA_MOUNT}
+API_PORT=${API_PORT}
+CONSOLE_PORT=${CONSOLE_PORT}
+SECRET_NAME=${SECRET_NAME}
+PEER_ARGS="${PEER_ARGS}"
+
+
+# Basic deps
+dnf update -y
+dnf install -y --allowerasing jq curl wget unzip tar xfsprogs util-linux awscli
+
+# Format and mount data disk if not already
+if ! blkid ${DATA_DEVICE}; then
+  mkfs.xfs -f ${DATA_DEVICE}
+fi
+
+mkdir -p ${DATA_MOUNT}
+grep -q "${DATA_DEVICE}" /etc/fstab || echo "${DATA_DEVICE} ${DATA_MOUNT} xfs defaults,nofail 0 2" >> /etc/fstab
+mount -a
+
+# Create minio user
+id -u minio >/dev/null 2>&1 || useradd -r -s /sbin/nologin minio
+chown -R minio:minio ${DATA_MOUNT}
+chmod 750 ${DATA_MOUNT}
+
+# Directories for certs/config
+mkdir -p /etc/minio/certs /etc/minio/config
+chown -R minio:minio /etc/minio
+chmod 750 /etc/minio
+
+# Download MinIO server and client
+MINIO_VER="RELEASE.2025-01-05T00-00-00Z"
+MC_VER="RELEASE.2025-01-05T00-00-00Z"
+
+curl -fsSL -o /usr/local/bin/minio https://dl.min.io/server/minio/release/linux-amd64/minio
+curl -fsSL -o /usr/local/bin/mc    https://dl.min.io/client/mc/release/linux-amd64/mc
+chmod +x /usr/local/bin/minio /usr/local/bin/mc
+
+# Fetch root creds from Secrets Manager
+CREDS_JSON=$(aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --query SecretString --output text)
+
+# Systemd unit
+cat >/etc/systemd/system/minio.service <<EOF
+[Unit]
+Description=MinIO Distributed Object Storage
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=minio
+Group=minio
+LimitNOFILE=262144
+Environment="MINIO_ROOT_USER=$(echo "$CREDS_JSON" | jq -r .access_key)"
+Environment="MINIO_ROOT_PASSWORD=$(echo "$CREDS_JSON" | jq -r .secret_key)"
+ExecStart=/usr/local/bin/minio server \
+  --address :${API_PORT} \
+  --console-address :${CONSOLE_PORT} \
+  --certs-dir /etc/minio/certs \
+  --config-dir /etc/minio/config \
+  ${PEER_ARGS}
+
+WorkingDirectory=${DATA_MOUNT}
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now minio
+
+# Health check: wait until MinIO is ready
+until curl -s http://localhost:${API_PORT}/minio/health/ready >/dev/null; do
+  echo "Waiting for MinIO to start..."
+  sleep 5
+done
+echo "MinIO is up and running!"
+
+# Optional: set OS tuning
+sysctl -w net.core.somaxconn=4096
+sysctl -w fs.file-max=1048576
