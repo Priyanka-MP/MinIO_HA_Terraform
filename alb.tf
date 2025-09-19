@@ -44,9 +44,10 @@ resource "aws_lb_target_group" "tg_console" {
   vpc_id      = aws_vpc.this.id
   target_type = "instance"
 
-  # console doesn't expose its own health path; rely on TCP success or simple GET /
+  # console doesn't expose its own health path; check API health instead
   health_check {
-    path                = "/"
+    path                = "/minio/health/ready"
+    port                = 9000
     matcher             = "200-399"
     interval            = 30
     healthy_threshold   = 2

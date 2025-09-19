@@ -91,3 +91,59 @@ resource "aws_route_table_association" "private_assoc" {
   subnet_id      = each.value.id
   route_table_id = aws_route_table.private[each.key].id
 }
+
+# Network ACLs to allow ALB to reach private instances
+resource "aws_network_acl" "private_nacl" {
+  vpc_id = aws_vpc.this.id
+  subnet_ids = [for s in aws_subnet.private : s.id]
+
+  # Allow all inbound from VPC (for inter-node communication)
+  ingress {
+    protocol   = "-1"
+    rule_no    = 100
+    action     = "allow"
+    cidr_block = aws_vpc.this.cidr_block
+    from_port  = 0
+    to_port    = 0
+  }
+
+  # Allow inbound from public subnets (where ALB is) on MinIO ports
+  ingress {
+    protocol   = "tcp"
+    rule_no    = 110
+    action     = "allow"
+    cidr_block = "10.42.0.0/20"  # public subnet 1
+    from_port  = 9000
+    to_port    = 9001
+  }
+
+  ingress {
+    protocol   = "tcp"
+    rule_no    = 111
+    action     = "allow"
+    cidr_block = "10.42.16.0/20"  # public subnet 2
+    from_port  = 9000
+    to_port    = 9001
+  }
+
+  ingress {
+    protocol   = "tcp"
+    rule_no    = 112
+    action     = "allow"
+    cidr_block = "10.42.32.0/20"  # public subnet 3
+    from_port  = 9000
+    to_port    = 9001
+  }
+
+  # Allow all outbound
+  egress {
+    protocol   = "-1"
+    rule_no    = 100
+    action     = "allow"
+    cidr_block = "0.0.0.0/0"
+    from_port  = 0
+    to_port    = 0
+  }
+
+  tags = { Name = "${var.project_name}-private-nacl" }
+}

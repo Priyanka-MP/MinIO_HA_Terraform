@@ -12,22 +12,15 @@ data "aws_ami" "al2023" {
 locals {
   # spread nodes across private subnets
   selected_private_subnets = [for s in aws_subnet.private : s.id]
-  # expected IPs for MinIO peers (assuming AWS assigns .10, .11, etc.)
-  expected_ips = {
-    0 = "10.42.64.10"
-    1 = "10.42.80.10"
-    2 = "10.42.96.10"
-    3 = "10.42.64.11"
-  }
 }
 
 resource "aws_instance" "minio" {
   count                       = var.node_count
   ami                         = data.aws_ami.al2023.id
   instance_type               = "t3.micro"
-  key_name                    = "minio-key"
-  subnet_id                   = element(local.selected_private_subnets, count.index % length(local.selected_private_subnets))
-  associate_public_ip_address = false
+  key_name                    = "minio-key-new"
+  subnet_id                   = element(values(aws_subnet.public).*.id, count.index % length(aws_subnet.public))
+  associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.node_sg.id]
   iam_instance_profile        = aws_iam_instance_profile.minio_node_profile.name
 
@@ -43,9 +36,9 @@ resource "aws_instance" "minio" {
 
   user_data = templatefile("${path.module}/user_data.sh.tmpl", {
     SECRET_NAME  = var.minio_secret_name
-    PEER_ARGS    = join(" ", [for i in range(var.node_count) : i != count.index ? "http://${local.expected_ips[i]}:9000/mnt/minio/" : ""])
-    DATA_DEVICE  = "/dev/xvdb"  # match template expectation
-    DATA_MOUNT   = "/mnt/minio" # match template expectation if also uppercase
+    PEER_ARGS    = join(" ", [for ip in local.expected_ips : "http://${ip}:9000"])
+    DATA_DEVICE  = "/dev/nvme1n1"  # AL2023 maps EBS to nvme
+    DATA_MOUNT   = "/mnt/minio"
     CONSOLE_PORT = 9001
     API_PORT     = 9000
   })
@@ -54,6 +47,21 @@ resource "aws_instance" "minio" {
   tags = {
     Name = "${var.project_name}-node-${count.index + 1}"
     Role = "minio"
+  }
+}
+
+resource "aws_instance" "bastion" {
+  ami                         = data.aws_ami.al2023.id
+  instance_type               = "t3.micro"
+  key_name                    = "minio-key-new"
+  subnet_id                   = element(values(aws_subnet.public).*.id, 0)
+  associate_public_ip_address = true
+  vpc_security_group_ids      = [aws_security_group.bastion_sg.id]
+  iam_instance_profile        = aws_iam_instance_profile.minio_node_profile.name
+
+  tags = {
+    Name = "${var.project_name}-bastion"
+    Role = "bastion"
   }
 }
 
