@@ -1,17 +1,28 @@
-# Latest Amazon Linux 2023 (or switch to Ubuntu if you prefer) 
+# instances.tf
+# EC2 instances configuration for MinIO High Availability deployment
+# This file creates the MinIO server instances in private subnets with NAT gateway access
+# and configures the Application Load Balancer target group attachments
+
+# Latest Amazon Linux 2023 AMI selection
+# This AMI provides a stable, secure, and well-maintained Linux distribution
+# You can switch to Ubuntu by changing the owner ID and AMI filters
 data "aws_ami" "al2023" {
-  owners      = ["137112412989"]
+  owners      = ["137112412989"]  # Amazon's official AMI owner ID
   most_recent = true
 
   filter {
     name   = "name"
-    values = ["al2023-ami-*-kernel-6.1-x86_64"]
+    values = ["al2023-ami-*-kernel-6.1-x86_64"]  # Latest AL2023 with kernel 6.1
   }
 }
 
+# Local values for subnet management
+# These help distribute MinIO instances across private subnets for high availability
 locals {
-  # spread nodes across private subnets
+  # List of private subnet IDs for MinIO instance placement
+  # This ensures instances are deployed in private subnets (not public)
   selected_private_subnets = [for s in aws_subnet.private : s.id]
+  minio_subnet_ids = values(aws_subnet.private).*.id
 }
 
 resource "aws_instance" "minio" {
@@ -19,8 +30,8 @@ resource "aws_instance" "minio" {
   ami                         = data.aws_ami.al2023.id
   instance_type               = "t3.micro"
   key_name                    = "minio-key-new"
-  subnet_id                   = element(values(aws_subnet.public).*.id, count.index % length(aws_subnet.public))
-  associate_public_ip_address = true
+  subnet_id                   = element(local.minio_subnet_ids, count.index % length(local.minio_subnet_ids))
+  associate_public_ip_address = false
   vpc_security_group_ids      = [aws_security_group.node_sg.id]
   iam_instance_profile        = aws_iam_instance_profile.minio_node_profile.name
 
@@ -36,7 +47,7 @@ resource "aws_instance" "minio" {
 
   user_data = templatefile("${path.module}/user_data.sh.tmpl", {
     SECRET_NAME  = var.minio_secret_name
-    PEER_ARGS    = join(" ", [for ip in local.expected_ips : "http://${ip}:9000"])
+    PEER_ARGS    = ""  # Will be configured after instance creation
     DATA_DEVICE  = "/dev/nvme1n1"  # AL2023 maps EBS to nvme
     DATA_MOUNT   = "/mnt/minio"
     CONSOLE_PORT = 9001

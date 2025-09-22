@@ -1,12 +1,21 @@
 #!/bin/bash
+# user_data.sh.tmpl
+# Cloud-init script template for MinIO server instances
+# This script runs on each MinIO instance during first boot to:
+# - Install dependencies and MinIO server
+# - Configure storage and mount data volumes
+# - Set up MinIO as a systemd service
+# - Configure AWS credentials and Secrets Manager access
+
 set -euo pipefail
 
-DATA_DEVICE=${DATA_DEVICE}
-DATA_MOUNT=${DATA_MOUNT}
-API_PORT=${API_PORT}
-CONSOLE_PORT=${CONSOLE_PORT}
-SECRET_NAME=${SECRET_NAME}
-PEER_ARGS="${PEER_ARGS}"
+# Template variables that get substituted during Terraform apply
+DATA_DEVICE=${DATA_DEVICE}      # EBS device path (e.g., /dev/nvme1n1)
+DATA_MOUNT=${DATA_MOUNT}        # Mount point for MinIO data (/mnt/minio)
+API_PORT=${API_PORT}            # MinIO API port (9000)
+CONSOLE_PORT=${CONSOLE_PORT}    # MinIO Console port (9001)
+SECRET_NAME=${SECRET_NAME}      # AWS Secrets Manager secret name
+PEER_ARGS="${PEER_ARGS}"        # MinIO distributed mode peer configuration
 
 # Basic deps
 dnf update -y

@@ -1,7 +1,17 @@
+# vpc.tf
+# VPC and networking configuration for MinIO High Availability deployment
+# This file creates the network infrastructure with public and private subnets
+# and NAT gateways to enable secure MinIO access
+
+# Data source to get available availability zones in the region
+# This ensures we deploy across multiple AZs for high availability
 data "aws_availability_zones" "available" {
   state = "available"
 }
 
+# Main VPC resource - the foundation of our network
+# CIDR block is configurable via variables.tf
+# DNS support and hostnames are enabled for proper service discovery
 resource "aws_vpc" "this" {
   cidr_block           = var.vpc_cidr
   enable_dns_support   = true
@@ -9,6 +19,8 @@ resource "aws_vpc" "this" {
   tags                 = { Name = "${var.project_name}-vpc" }
 }
 
+# Internet Gateway - allows communication between VPC and the internet
+# Required for ALB to receive traffic and NAT gateways to provide outbound access
 resource "aws_internet_gateway" "igw" {
   vpc_id = aws_vpc.this.id
   tags   = { Name = "${var.project_name}-igw" }

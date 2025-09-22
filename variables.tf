@@ -1,28 +1,47 @@
+# variables.tf
+# Input variables for the MinIO High Availability deployment
+# These variables control the configuration of the entire infrastructure
+
+# AWS region where resources will be deployed
+# Default is ap-south-1 (Mumbai), but can be changed to any AWS region
 variable "region" {
   type        = string
   default     = "ap-south-1"
-  description = "AWS region"
+  description = "AWS region where all resources will be deployed"
 }
 
+# Project name prefix used for all resource names
+# This helps with resource identification and organization
 variable "project_name" {
   type        = string
   default     = "minio-ha"
-  description = "Resource name prefix"
+  description = "Resource name prefix for all AWS resources (VPC, subnets, security groups, etc.)"
 }
 
+# VPC CIDR block - defines the IP range for the entire VPC
+# 10.42.0.0/16 provides 65,536 IP addresses
 variable "vpc_cidr" {
   type    = string
   default = "10.42.0.0/16"
+  description = "CIDR block for the VPC - defines the IP address range for the entire network"
 }
 
+# Public subnet CIDR blocks - where ALB and NAT gateways will be deployed
+# Each /20 subnet provides 4,096 IP addresses
+# Three subnets for high availability across availability zones
 variable "public_subnet_cidrs" {
   type    = list(string)
   default = ["10.42.0.0/20", "10.42.16.0/20", "10.42.32.0/20"]
+  description = "CIDR blocks for public subnets - ALB and NAT gateways will be deployed here"
 }
 
+# Private subnet CIDR blocks - where MinIO instances will be deployed
+# Each /20 subnet provides 4,096 IP addresses
+# Three subnets for high availability across availability zones
 variable "private_subnet_cidrs" {
   type    = list(string)
   default = ["10.42.64.0/20", "10.42.80.0/20", "10.42.96.0/20"]
+  description = "CIDR blocks for private subnets - MinIO instances will be deployed here"
 }
 
 variable "node_count" {
