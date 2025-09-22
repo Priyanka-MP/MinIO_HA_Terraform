@@ -1,16 +1,26 @@
+# iam.tf
+# IAM roles and policies for MinIO High Availability deployment
+# This file configures the necessary permissions for MinIO instances to:
+# - Access AWS Secrets Manager for root credentials
+# - Use AWS Systems Manager (SSM) for remote management
+# - Generate and store MinIO root credentials securely
+
 # IAM Role for EC2 nodes to use SSM and read from Secrets Manager
+# This role is attached to all MinIO instances and provides necessary permissions
 resource "aws_iam_role" "minio_node_role" {
   name               = "${var.project_name}-node-role"
   assume_role_policy = data.aws_iam_policy_document.ec2_trust.json
+  description        = "IAM role for MinIO nodes with SSM and Secrets Manager access"
 }
 
 # Trust policy: allow EC2 service to assume role
+# This policy document defines which AWS services can assume this role
 data "aws_iam_policy_document" "ec2_trust" {
   statement {
     actions = ["sts:AssumeRole"]
     principals {
       type        = "Service"
-      identifiers = ["ec2.amazonaws.com"]
+      identifiers = ["ec2.amazonaws.com"]  # Only EC2 instances can assume this role
     }
   }
 }

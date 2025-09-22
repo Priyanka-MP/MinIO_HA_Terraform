@@ -1,9 +1,18 @@
+# alb.tf
+# Application Load Balancer configuration for MinIO High Availability deployment
+# This file creates the ALB that provides external access to MinIO services
+# while keeping the MinIO instances in private subnets for security
+
+# Application Load Balancer - provides external access to MinIO services
+# Deployed in public subnets to receive internet traffic
+# Routes traffic to MinIO instances in private subnets
 resource "aws_lb" "minio_alb" {
   name               = "${var.project_name}-alb"
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb_sg.id]
-  subnets            = [for s in aws_subnet.public : s.id]
+  subnets            = [for s in aws_subnet.public : s.id]  # ALB in public subnets
 
+  # Optional: Enable access logs to S3 bucket for monitoring and debugging
   dynamic "access_logs" {
     for_each = var.enable_access_logs && var.alb_logs_bucket != "" ? [1] : []
     content {
@@ -44,9 +53,10 @@ resource "aws_lb_target_group" "tg_console" {
   vpc_id      = aws_vpc.this.id
   target_type = "instance"
 
-  # console doesn't expose its own health path; rely on TCP success or simple GET /
+  # console doesn't expose its own health path; check API health instead
   health_check {
-    path                = "/"
+    path                = "/minio/health/ready"
+    port                = 9000
     matcher             = "200-399"
     interval            = 30
     healthy_threshold   = 2

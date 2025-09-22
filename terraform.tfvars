@@ -19,3 +19,5 @@ certificate_arn = ""
 # If you want ALB access logs
 enable_access_logs = false
 alb_logs_bucket    = ""
+
+create_bastion = true

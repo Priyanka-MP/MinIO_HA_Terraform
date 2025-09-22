@@ -1,18 +1,31 @@
 #!/bin/bash
+# user_data.sh.tmpl
+# Cloud-init script template for MinIO server instances
+# This script runs on each MinIO instance during first boot to:
+# - Install dependencies and MinIO server
+# - Configure storage and mount data volumes
+# - Set up MinIO as a systemd service
+# - Configure AWS credentials and Secrets Manager access
+
 set -euo pipefail
 
-#!/bin/bash
-DATA_DEVICE=${DATA_DEVICE}
-DATA_MOUNT=${DATA_MOUNT}
-API_PORT=${API_PORT}
-CONSOLE_PORT=${CONSOLE_PORT}
-SECRET_NAME=${SECRET_NAME}
-PEER_ARGS="${PEER_ARGS}"
-
+# Template variables that get substituted during Terraform apply
+DATA_DEVICE=${DATA_DEVICE}      # EBS device path (e.g., /dev/nvme1n1)
+DATA_MOUNT=${DATA_MOUNT}        # Mount point for MinIO data (/mnt/minio)
+API_PORT=${API_PORT}            # MinIO API port (9000)
+CONSOLE_PORT=${CONSOLE_PORT}    # MinIO Console port (9001)
+SECRET_NAME=${SECRET_NAME}      # AWS Secrets Manager secret name
+PEER_ARGS="${PEER_ARGS}"        # MinIO distributed mode peer configuration
 
 # Basic deps
 dnf update -y
-dnf install -y --allowerasing jq curl wget unzip tar xfsprogs util-linux awscli
+dnf install -y jq curl wget unzip tar xfsprogs util-linux awscli
+
+# --- Install & start SSM Agent ---
+dnf install -y amazon-ssm-agent
+systemctl enable amazon-ssm-agent
+systemctl start amazon-ssm-agent
+# ---------------------------------
 
 # Format and mount data disk if not already
 if ! blkid ${DATA_DEVICE}; then
@@ -43,6 +56,8 @@ chmod +x /usr/local/bin/minio /usr/local/bin/mc
 
 # Fetch root creds from Secrets Manager
 CREDS_JSON=$(aws secretsmanager get-secret-value --secret-id "$SECRET_NAME" --query SecretString --output text)
+ACCESS_KEY=$(echo "$CREDS_JSON" | jq -r .access_key)
+SECRET_KEY=$(echo "$CREDS_JSON" | jq -r .secret_key)
 
 # Systemd unit
 cat >/etc/systemd/system/minio.service <<EOF
@@ -62,6 +77,7 @@ ExecStart=/usr/local/bin/minio server \
   --console-address :${CONSOLE_PORT} \
   --certs-dir /etc/minio/certs \
   --config-dir /etc/minio/config \
+  ${DATA_MOUNT} \
   ${PEER_ARGS}
 
 WorkingDirectory=${DATA_MOUNT}
