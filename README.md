@@ -200,6 +200,6 @@ This configuration is provided as-is for educational and development purposes.
 ## 📞 Support
 
 For issues and questions:
-1. Check the troubleshooting section above
-2. Review AWS documentation for relevant services
-3. Create an issue in the repository with detailed information
+1. Check the troubleshooting section above.
+2. Review AWS documentation for relevant services.
+3. Create an issue in the repository with detailed information.
